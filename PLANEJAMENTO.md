@@ -34,7 +34,7 @@ Esqueleto local. **Nada foi publicado.**
 | União | Siconfi — DCA da União (API) | 2013+ | empenhado, liquidado, pago | conferência |
 | Estados e municípios | Siconfi — DCA (API) | **2013+** | empenhado, liquidado, pago | 2009–2012 vêm vazios; 5.598 entes |
 | Estados e municípios | Siconfi — RREO (API) | 2015+ | — | conferência e mínimos legais |
-| Estados e municípios | SIOPE — consultas públicas por município e UF | 2005+ (no formulário) | a confirmar | **única fonte candidata para 2009–2012**; os "downloads" do SIOPE são só instaladores |
+| Estados e municípios | SIOPE — consultas públicas por município e UF | 2005+ (no formulário) | — | **consultas protegidas por captcha** (rodada 5): o robô não pode usá-las; os "downloads" do SIOPE são só instaladores |
 | Matrículas | INEP — Censo Escolar e Censo da Educação Superior | 2009+ (superior), 2013+ testado (escolar) | — | precisa da cadeia de certificado completada (`coletor/cadeia.py`); o zip de 2009 do Censo Escolar cortou a conexão |
 | IPCA | Banco Central (SGS 433) | 2009+ | — | ok |
 
@@ -47,7 +47,11 @@ Consequências:
 - **União 2014+:** liquidado, com órgão (separa universidades e institutos federais com precisão).
 - **União 2009–2013:** valor pago do Tesouro, marcado no site como "série aproximada".
   Falta separar os restos a pagar pagos. Seguir procurando o liquidado desse período.
-- **Estados e municípios 2013+:** Siconfi. **2009–2012:** SIOPE, se a consulta por município responder (rodada 5).
+- **Estados e municípios 2013+:** Siconfi.
+- **Estados e municípios 2009–2012: ainda sem fonte automática.** O SIOPE exige captcha, e o robô não vai
+  contorná-lo. Próximas candidatas: FINBRA antigo no Siconfi ("Consultar Contas Anuais", página JSF) e os
+  conjuntos do FNDE/SIOPE no dados.gov.br (a API exige chave gratuita). Se nenhuma servir, o site começa
+  estados e municípios em 2013 e mostra só a União desde 2009.
 
 ## Ordem
 1. Sondagem: rodar `sondar.yml` no Actions, porque esta máquina não alcança os sites do governo.
