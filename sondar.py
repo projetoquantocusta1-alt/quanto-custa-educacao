@@ -103,7 +103,33 @@ def rodada4():
     yield "siope_municipal", None, SIOPE + "demonstrativoFuncaoEducacao.do"
 
 
-RODADAS = {1: rodada1, 2: rodada2, 3: rodada3, 4: rodada4}
+def rodada5():
+    """SIOPE: o formulário por município responde dados? (Fortaleza = 230440, IBGE sem dígito)."""
+    yield "siope_form", None, SIOPE + "dadosInformadosMunicipio.do"
+    yield "siope_form", None, SIOPE + "demonstrativoFuncaoEducacao.do"
+    base = SIOPE + "dadosInformadosMunicipio.do?acao=pesquisar&pag=result&cod_uf=23&cod_muni=230440&num_ano=2010&num_peri=6"
+    for tp in ["D", "R", "I", "P"]:
+        yield "siope_consulta", 2010, f"{base}&tp_relatorio={tp}"
+    yield "siope_consulta", 2010, (SIOPE + "demonstrativoFuncaoEducacao.do?acao=pesquisar&pag=result"
+                                   "&cod_uf=23&municipios=230440&anos=2010&periodos=6")
+
+
+RODADAS = {1: rodada1, 2: rodada2, 3: rodada3, 4: rodada4, 5: rodada5}
+
+
+def _texto(html: str) -> str:
+    html = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=re.S | re.I)
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html)).strip()
+
+
+def _formulario(r, info):
+    """Guarda o HTML do formulário (selects com nomes e opções, campos ocultos com valores)."""
+    m = re.search(r"<form.*?</form>", r.text, re.S | re.I)
+    form = m.group(0) if m else r.text
+    info["selects"] = {n: re.findall(r'<option[^>]*value=["\']([^"\']*)', corpo)[:8]
+                       for n, corpo in re.findall(r'<select[^>]*name=["\']([^"\']+)["\'][^>]*>(.*?)</select>', form, re.S | re.I)}
+    info["inputs"] = re.findall(r"<input[^>]*>", form, re.I)[:25]
+    info["scripts"] = re.findall(r"(?:submit|action|location)[^;]{0,160}", " ".join(re.findall(r"<script[^>]*>(.*?)</script>", r.text, re.S | re.I)))[:12]
 
 
 def _rotulos(r, info):
@@ -211,6 +237,11 @@ def sondar(url: str, fonte: str = "") -> dict:
                 "tamanho": r.headers.get("Content-Length")}
         if fonte == "uniao_funcao12":
             _uniao_funcao12(r, info)
+        elif fonte == "siope_form":
+            _formulario(r, info)
+        elif fonte == "siope_consulta":
+            info["bytes"] = len(r.content)
+            info["texto"] = _texto(r.text)[:1800]
         elif fonte == "siope_rotulos":
             _rotulos(r, info)
         elif url.endswith(".xlsx"):
