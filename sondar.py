@@ -91,7 +91,70 @@ def rodada3():
     yield "inep", 2009, config.INEP_CENSO_SUPERIOR.format(ano=2009)
 
 
-RODADAS = {1: rodada1, 2: rodada2, 3: rodada3}
+DESPESA_UNIAO = ("https://www.tesourotransparente.gov.br/ckan/dataset/bcd753b8-e79d-4964-a565-977d23bada0d"
+                 "/resource/1043f379-e7fb-4c18-be52-345b8672ccfb/download/despesauniao.xlsx")
+
+
+def rodada4():
+    """SIOPE: o que são os arquivos de download.do; União: Função 12 por ano na planilha desde 2008."""
+    yield "siope_rotulos", None, SIOPE + "download.do"
+    yield "uniao_funcao12", None, DESPESA_UNIAO
+    yield "siope_municipal", None, SIOPE + "dadosInformadosMunicipio.do"
+    yield "siope_municipal", None, SIOPE + "demonstrativoFuncaoEducacao.do"
+
+
+RODADAS = {1: rodada1, 2: rodada2, 3: rodada3, 4: rodada4}
+
+
+def _rotulos(r, info):
+    """Texto de cada link (o que é cada arquivo) e, para os 6 primeiros, nome e tamanho do arquivo."""
+    html = r.text
+    pares = re.findall(r'<a[^>]+href=["\']([^"\']+castor[^"\']+)["\'][^>]*>(.*?)</a>', html, re.S | re.I)
+    texto = lambda t: re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", t)).strip()
+    # o rótulo às vezes está na linha da tabela, antes do link
+    linhas = re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S | re.I)
+    por_link = {}
+    for ln in linhas:
+        for u in re.findall(r'href=["\']([^"\']+castor[^"\']+)', ln):
+            por_link[u] = texto(ln)[:160]
+    info["arquivos"] = [{"url": u, "rotulo": por_link.get(u) or texto(t)} for u, t in pares]
+    for a in info["arquivos"][:6]:
+        try:
+            h = http.get(a["url"], timeout=60, stream=True)
+            a["tipo"], a["disposicao"], a["tamanho"] = (h.headers.get("Content-Type"),
+                                                       h.headers.get("Content-Disposition"),
+                                                       h.headers.get("Content-Length"))
+            h.close()
+        except Exception as e:  # noqa: BLE001
+            a["erro"] = str(e)[:120]
+
+
+def _uniao_funcao12(r, info):
+    """Soma a Função 12 (Educação) por ano: aplicação direta × transferência × intra (valor PAGO)."""
+    import io
+    import openpyxl
+    from coletor import contas
+    ws = openpyxl.load_workbook(io.BytesIO(r.content), read_only=True, data_only=True).worksheets[0]
+    linhas = ws.iter_rows(values_only=True)
+    cab = list(next(linhas))
+    i = {c: cab.index(c) for c in ("Funcao_cod", "Subfuncao_cod", "Modalidade_cod", "Ano", "Valor", "Esfera_cod")}
+    anos, esferas = {}, set()
+    for row in linhas:
+        esferas.add(row[i["Esfera_cod"]])
+        if str(row[i["Funcao_cod"]]).zfill(2) != "12":
+            continue
+        ln = {"funcao": "12", "subfuncao": row[i["Subfuncao_cod"]], "modalidade": row[i["Modalidade_cod"]]}
+        classe = contas.classificar(ln)
+        a = anos.setdefault(str(row[i["Ano"]]), {"direta": 0.0, "transferencia": 0.0, "intra": 0.0,
+                                                 "superior": 0.0, "basica": 0.0})
+        v = float(row[i["Valor"]] or 0)
+        a[classe] = a.get(classe, 0.0) + v
+        if classe == "direta":
+            nv = contas.nivel(ln)
+            if nv in a:
+                a[nv] += v
+    info["esferas"] = sorted(map(str, esferas))
+    info["funcao12_por_ano_bilhoes"] = {k: {c: round(v / 1e9, 2) for c, v in d.items()} for k, d in sorted(anos.items())}
 
 
 def _planilha(r, info):
@@ -141,12 +204,16 @@ def _descobrir(r, info, todos_links=False):
         info["redireciona_para"] = r.url if r.url else None
 
 
-def sondar(url: str) -> dict:
+def sondar(url: str, fonte: str = "") -> dict:
     try:
         r = http.get(url, timeout=90, stream=True)
         info = {"status": r.status_code, "tipo": r.headers.get("Content-Type"),
                 "tamanho": r.headers.get("Content-Length")}
-        if url.endswith(".xlsx"):
+        if fonte == "uniao_funcao12":
+            _uniao_funcao12(r, info)
+        elif fonte == "siope_rotulos":
+            _rotulos(r, info)
+        elif url.endswith(".xlsx"):
             _planilha(r, info)
         elif not any(t in (info["tipo"] or "") for t in ("zip", "octet")):
             _descobrir(r, info, todos_links="siope" in url)     # zip grande: só o cabeçalho
@@ -165,7 +232,7 @@ def main():
     for fonte, ano, url in RODADAS[rodada]():
         if so and not any(fonte.startswith(s) for s in so):
             continue
-        r = {"fonte": fonte, "ano": ano, "url": url, **sondar(url)}
+        r = {"fonte": fonte, "ano": ano, "url": url, **sondar(url, fonte)}
         print(json.dumps(r, ensure_ascii=False, default=str))
         res.append(r)
     (SAIDA / f"rodada_{rodada}.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str))
