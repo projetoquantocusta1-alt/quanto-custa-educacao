@@ -1,6 +1,8 @@
 name: Sondagem das fontes
 
 on:
+  push:
+    paths: [sondar.py, .github/workflows/sondar.yml]
   workflow_dispatch:
     inputs:
       fontes:
