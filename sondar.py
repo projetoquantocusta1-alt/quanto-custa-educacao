@@ -166,9 +166,9 @@ def main():
         if so and not any(fonte.startswith(s) for s in so):
             continue
         r = {"fonte": fonte, "ano": ano, "url": url, **sondar(url)}
-        print(json.dumps(r, ensure_ascii=False))
+        print(json.dumps(r, ensure_ascii=False, default=str))
         res.append(r)
-    (SAIDA / f"rodada_{rodada}.json").write_text(json.dumps(res, ensure_ascii=False, indent=1))
+    (SAIDA / f"rodada_{rodada}.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=str))
 
 
 if __name__ == "__main__":
