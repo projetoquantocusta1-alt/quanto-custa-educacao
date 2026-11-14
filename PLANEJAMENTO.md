@@ -25,16 +25,29 @@ Esqueleto local. **Nada foi publicado.**
 6. **Conferência:** o que a origem diz ter repassado é comparado com o que os destinos declaram
    ter recebido (`conferir_transferencias`). Diferenças grandes aparecem em Pontos de atenção.
 
-## Fontes e desde quando (a confirmar com `sondar.py`)
-| Esfera | Fonte | Desde |
-|---|---|---|
-| União (MEC, FNDE, universidades, IFs, CAPES, INEP) | Portal da Transparência / SIOP | ~2004 |
-| Estados | SIOPE (FNDE) + Siconfi | ~2009 |
-| Municípios | SIOPE + Siconfi/FINBRA | ~2009, cobertura irregular |
-| Matrículas | Censo Escolar / Censo da Ed. Superior (INEP) | anos 1990 |
-| Resultados | IDEB / SAEB | 2005, a cada dois anos |
-| PIB, população | IBGE | — |
-| IPCA | BCB SGS 433 | — |
+## Fontes e desde quando (medido pelas sondagens 1–4, novembro de 2026)
+| Esfera | Fonte | Anos | Fase | Observação |
+|---|---|---|---|---|
+| União | Portal da Transparência — orçamento da despesa (zip anual) | **2014+** | empenhado, liquidado, pago | 2009–2013 dão 403 |
+| União | Tesouro — "Despesas da União mensais desde 2008" (xlsx) | **2008 → início de 2019** | **pago** | tem função, subfunção, ação e modalidade, sem órgão; pode incluir restos a pagar pagos |
+| União | Tesouro — COFOG do governo central (csv) | 2010–2024 | — | classificação internacional, para conferência |
+| União | Siconfi — DCA da União (API) | 2013+ | empenhado, liquidado, pago | conferência |
+| Estados e municípios | Siconfi — DCA (API) | **2013+** | empenhado, liquidado, pago | 2009–2012 vêm vazios; 5.598 entes |
+| Estados e municípios | Siconfi — RREO (API) | 2015+ | — | conferência e mínimos legais |
+| Estados e municípios | SIOPE — consultas públicas por município e UF | 2005+ (no formulário) | a confirmar | **única fonte candidata para 2009–2012**; os "downloads" do SIOPE são só instaladores |
+| Matrículas | INEP — Censo Escolar e Censo da Educação Superior | 2009+ (superior), 2013+ testado (escolar) | — | precisa da cadeia de certificado completada (`coletor/cadeia.py`); o zip de 2009 do Censo Escolar cortou a conexão |
+| IPCA | Banco Central (SGS 433) | 2009+ | — | ok |
+
+Primeiro número real (planilha do Tesouro, Função 12, **valor pago**, R$ bilhões):
+2009: aplicação direta 21,0 · repasses 9,7 · intra 3,5. Em 2018: 71,0 · 23,9 · 8,7.
+Pela subfunção, o superior aparece com 13,0 em 2009. Sem a coluna de órgão, a administração das
+universidades não pode ser somada ao superior, então para 2009–2013 a divisão básica × superior é aproximada.
+
+Consequências:
+- **União 2014+:** liquidado, com órgão (separa universidades e institutos federais com precisão).
+- **União 2009–2013:** valor pago do Tesouro, marcado no site como "série aproximada".
+  Falta separar os restos a pagar pagos. Seguir procurando o liquidado desse período.
+- **Estados e municípios 2013+:** Siconfi. **2009–2012:** SIOPE, se a consulta por município responder (rodada 5).
 
 ## Ordem
 1. Sondagem: rodar `sondar.yml` no Actions, porque esta máquina não alcança os sites do governo.
