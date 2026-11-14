@@ -28,4 +28,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: sondagem
-          path: dados_brutos/sondagem/resultado.json
+          path: dados_brutos/sondagem/*.json

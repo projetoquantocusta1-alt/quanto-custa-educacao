@@ -1,2 +1,4 @@
 requests>=2.31
+certifi
+cryptography>=42
 pytest>=8

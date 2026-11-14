@@ -74,6 +74,10 @@ FUNDEB_PROFISSIONAIS = {2009: 0.60, 2021: 0.70}   # Lei 11.494/2007 → Lei 14.1
 META_PNE_PIB = 0.10                    # PNE 2014–2024, meta 20
 
 # --- Fontes ---
+# Sites que mandam o certificado sem o intermediário: a cadeia é completada (coletor/cadeia.py),
+# a verificação TLS continua ligada.
+HOSTS_CADEIA_INCOMPLETA = {"download.inep.gov.br"}
+
 # URLs exatas a confirmar com sondar.py. As marcadas com "?" ainda não foram testadas.
 SICONFI_API = "https://apidatalake.tesouro.gov.br/ords/siconfi/tt"
 TRANSPARENCIA_ORCAMENTO = "https://portaldatransparencia.gov.br/download-de-dados/orcamento-despesa/{ano}"

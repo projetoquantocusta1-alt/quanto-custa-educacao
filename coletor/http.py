@@ -60,6 +60,9 @@ def get(url, params=None, timeout=60, **kw) -> requests.Response:
     if espera > 0:
         time.sleep(espera)
     try:
+        if host in getattr(config, "HOSTS_CADEIA_INCOMPLETA", ()) and "verify" not in kw:
+            from coletor import cadeia
+            kw["verify"] = cadeia.pacote_para(host)
         r = sessao().get(url, params=params, timeout=timeout, **kw)
         r.raise_for_status()
     except requests.RequestException:
