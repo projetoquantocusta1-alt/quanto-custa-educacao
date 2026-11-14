@@ -68,14 +68,53 @@ def rodada2():
         yield "pagina", None, url
 
 
-RODADAS = {1: rodada1, 2: rodada2}
+CKAN_SHOW = "https://www.tesourotransparente.gov.br/ckan/api/3/action/package_show?id="
+SIOPE = "https://www.fnde.gov.br/siope/"
 
 
-def _descobrir(r, info):
+def rodada3():
+    """Abrir os candidatos para 2009–2012 achados na rodada 2."""
+    # SIOPE: páginas públicas de relatórios e download (todos os links, sem filtro)
+    for pag in ["download.do", "relatoriosEstaduais.jsp", "relatoriosMunicipais.jsp",
+                "relatoriosDaUniao.jsp", "relatorio-gerencial/dist/"]:
+        yield "siope_pagina", None, SIOPE + pag
+    # Tesouro Transparente: todos os arquivos dos conjuntos candidatos
+    for ident in ["bcd753b8-e79d-4964-a565-977d23bada0d",    # Despesas da União mensais desde 2008
+                  "22d13d17-bf69-4a1a-add2-25cc1e25f2d7",    # Despesas por função (COFOG)
+                  "c6537d6f-237e-4826-9396-2df7968c9417"]:   # Restos a pagar da União
+        yield "ckan_conjunto", None, CKAN_SHOW + ident
+    # Planilha da União desde 2008: abrir e ler o cabeçalho
+    yield "planilha", None, ("https://www.tesourotransparente.gov.br/ckan/dataset/bcd753b8-e79d-4964-a565-977d23bada0d"
+                             "/resource/1043f379-e7fb-4c18-be52-345b8672ccfb/download/despesauniao.xlsx")
+    # INEP 2009 (na rodada 2 a conexão caiu): de novo, e o Censo Superior de 2009
+    yield "inep", 2009, config.INEP_CENSO_ESCOLAR.format(ano=2009)
+    yield "inep", 2009, config.INEP_CENSO_SUPERIOR.format(ano=2009)
+
+
+RODADAS = {1: rodada1, 2: rodada2, 3: rodada3}
+
+
+def _planilha(r, info):
+    """Baixa uma planilha .xlsx e guarda abas, cabeçalho e 3 linhas de amostra."""
+    import io
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(r.content), read_only=True, data_only=True)
+    info["abas"] = {}
+    for ws in wb.worksheets[:6]:
+        linhas = [[c for c in row if c is not None][:25] for row in ws.iter_rows(max_row=8, values_only=True)]
+        info["abas"][ws.title] = [ln for ln in linhas if ln][:6]
+
+
+def _descobrir(r, info, todos_links=False):
     tipo = info.get("tipo") or ""
     if "json" in tipo:
         corpo = r.json()
-        if isinstance(corpo, dict) and isinstance(corpo.get("result"), dict):   # CKAN
+        if isinstance(corpo, dict) and isinstance(corpo.get("result"), dict) and "resources" in corpo["result"]:
+            pk = corpo["result"]                                                  # CKAN package_show
+            info["conjunto"] = pk.get("title")
+            info["arquivos"] = [{"nome": x.get("name"), "formato": x.get("format"), "url": x.get("url")}
+                                for x in pk["resources"]][:80]
+        elif isinstance(corpo, dict) and isinstance(corpo.get("result"), dict):   # CKAN package_search
             info["conjuntos"] = [
                 {"nome": p.get("title"),
                  "recursos": [x.get("url") for x in p.get("resources", [])][:6]}
@@ -89,7 +128,14 @@ def _descobrir(r, info):
     elif "html" in tipo:
         html = r.text[:400_000]
         links = sorted(set(re.findall(r'href=["\']([^"\'#]+)', html)))
-        info["links"] = [u for u in links if PALAVRAS.search(u)][:40]
+        info["links"] = (links if todos_links else [u for u in links if PALAVRAS.search(u)])[:80]
+        # formulários (páginas JSP/JSF de consulta): campos e opções, p/ montar a consulta depois
+        info["formularios"] = [
+            {"acao": a, "campos": sorted(set(re.findall(r'name=["\']([^"\']+)', f)))[:30]}
+            for a, f in re.findall(r'<form[^>]*action=["\']([^"\']*)["\'][^>]*>(.*?)</form>', html, re.S | re.I)][:5]
+        opcoes = re.findall(r'<option[^>]*value=["\']([^"\']*)["\']', html)
+        if opcoes:
+            info["opcoes"] = opcoes[:60]
         m = re.search(r"<title>(.*?)</title>", html, re.S | re.I)
         info["titulo"] = m.group(1).strip()[:120] if m else None
         info["redireciona_para"] = r.url if r.url else None
@@ -100,8 +146,10 @@ def sondar(url: str) -> dict:
         r = http.get(url, timeout=90, stream=True)
         info = {"status": r.status_code, "tipo": r.headers.get("Content-Type"),
                 "tamanho": r.headers.get("Content-Length")}
-        if not any(t in (info["tipo"] or "") for t in ("zip", "octet")):
-            _descobrir(r, info)     # zip grande: só o cabeçalho
+        if url.endswith(".xlsx"):
+            _planilha(r, info)
+        elif not any(t in (info["tipo"] or "") for t in ("zip", "octet")):
+            _descobrir(r, info, todos_links="siope" in url)     # zip grande: só o cabeçalho
         r.close()
         return info
     except Exception as e:  # noqa: BLE001 — sondagem: registrar qualquer falha
