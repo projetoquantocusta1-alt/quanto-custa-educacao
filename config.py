@@ -1,4 +1,4 @@
-"""Configuração do Projeto Quanto Custa — Educação.
+"""Configuração do Quanto Custa — Educação.
 
 Quanto o Brasil gasta com educação desde 2009: União, estados e municípios,
 separando QUEM PAGA de QUEM GASTA para não contar o mesmo dinheiro duas vezes.
